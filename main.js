@@ -5,19 +5,11 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// Luz
-const light = new THREE.AmbientLight(0x404040); // Luz ambiental
-scene.add(light);
-
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-directionalLight.position.set(0, 1, 0).normalize();
-scene.add(directionalLight);
-
 // Cargador de modelos GLTF
 const loader = new THREE.GLTFLoader();
 
 // Cargar el modelo fijo
-loader.load('models/laberinto001.gltf', function(gltf) {
+loader.load('models/laberinto002.gltf', function(gltf) {
     scene.add(gltf.scene);
 }, undefined, function(error) {
     console.error(error);
@@ -49,6 +41,14 @@ controls.minDistance = 1; // Distancia mínima de zoom
 controls.maxDistance = 50; // Distancia máxima de zoom
 controls.target.set(0, 2, 0); // Ajusta el target para centrar la vista en ambos modelos
 
+// Cargar el HDRI
+const rgbeLoader = new THREE.RGBELoader();
+rgbeLoader.load('models/minedump_flats_2k.hdr', function(texture) {
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    scene.environment = texture;
+    scene.background = texture;
+});
+
 // Bucle de animación
 const clock = new THREE.Clock();
 function animate() {
@@ -72,3 +72,4 @@ window.addEventListener('resize', function() {
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
 });
+
