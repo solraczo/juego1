@@ -40,6 +40,12 @@ loader.load('models/personaje001.gltf', function(gltf) {
 // Posición de la cámara
 camera.position.z = 5;
 
+// Configurar OrbitControls
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; // Suaviza el movimiento
+controls.dampingFactor = 0.25;
+controls.enableZoom = true; // Permite el zoom
+
 // Bucle de animación
 const clock = new THREE.Clock();
 function animate() {
@@ -49,6 +55,7 @@ function animate() {
         mixer.update(clock.getDelta());
     }
 
+    controls.update(); // Actualiza los controles en cada frame
     renderer.render(scene, camera);
 }
 
