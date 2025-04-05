@@ -38,13 +38,16 @@ loader.load('models/personaje001.gltf', function(gltf) {
 });
 
 // Posición de la cámara
-camera.position.set(0, 2, 5); // Ajusta la posición inicial de la cámara
+camera.position.set(0, 5, 10); // Ajusta la posición inicial de la cámara para ver ambos modelos
 
 // Configurar OrbitControls
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true; // Suaviza el movimiento
 controls.dampingFactor = 0.25;
 controls.enableZoom = true; // Permite el zoom
+controls.minDistance = 1; // Distancia mínima de zoom
+controls.maxDistance = 50; // Distancia máxima de zoom
+controls.target.set(0, 2, 0); // Ajusta el target para centrar la vista en ambos modelos
 
 // Bucle de animación
 const clock = new THREE.Clock();
