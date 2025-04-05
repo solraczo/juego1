@@ -8,9 +8,6 @@ document.body.appendChild(renderer.domElement);
 // Cargador de modelos GLTF
 const loader = new THREE.GLTFLoader();
 
-// Cargador de modelos GLTF
-const loader = new THREE.GLTFLoader();
-
 // Cargar el modelo fijo con manejo de errores
 loader.load('models/laberinto003.gltf', function(gltf) {
     const model = gltf.scene;
@@ -25,8 +22,9 @@ loader.load('models/laberinto003.gltf', function(gltf) {
                 console.warn('Advertencia: No se encontró textura para el material de', child);
             }
         }
+    });
 }, undefined, function(error) {
-    console.error('Error al cargar el modelo laberinto001.gltf:', error);
+    console.error('Error al cargar el modelo laberinto003.gltf:', error);
 });
 
 // Cargar el modelo animado
@@ -42,7 +40,6 @@ loader.load('models/personaje001.gltf', function(gltf) {
 }, undefined, function(error) {
     console.error('Error al cargar el modelo personaje001.gltf:', error);
 });
-
 
 // Posición de la cámara
 camera.position.set(0, 5, 10); // Ajusta la posición inicial de la cámara para ver ambos modelos
@@ -87,4 +84,3 @@ window.addEventListener('resize', function() {
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
 });
-
