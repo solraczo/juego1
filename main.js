@@ -9,7 +9,7 @@ document.body.appendChild(renderer.domElement);
 const loader = new THREE.GLTFLoader();
 
 // Cargar el modelo fijo
-loader.load('models/laberinto001.gltf', function(gltf) {
+loader.load('models/laberinto003.gltf', function(gltf) {
     scene.add(gltf.scene);
 }, undefined, function(error) {
     console.error(error);
