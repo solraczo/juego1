@@ -25,7 +25,6 @@ loader.load('models/laberinto003.gltf', function(gltf) {
                 console.warn('Advertencia: No se encontró textura para el material de', child);
             }
         }
-    });
 }, undefined, function(error) {
     console.error('Error al cargar el modelo laberinto001.gltf:', error);
 });
