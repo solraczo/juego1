@@ -5,26 +5,22 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
+// Luz
+const light = new THREE.AmbientLight(0x404040); // Luz ambiental
+scene.add(light);
+
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+directionalLight.position.set(0, 1, 0).normalize();
+scene.add(directionalLight);
+
 // Cargador de modelos GLTF
 const loader = new THREE.GLTFLoader();
 
-// Cargar el modelo fijo con manejo de errores
+// Cargar el modelo fijo
 loader.load('models/laberinto003.gltf', function(gltf) {
-    const model = gltf.scene;
-    scene.add(model);
-
-    // Verifica si las texturas se cargaron correctamente
-    model.traverse(function(child) {
-        if (child.isMesh) {
-            if (child.material.map) {
-                console.log('Textura cargada:', child.material.map);
-            } else {
-                console.warn('Advertencia: No se encontró textura para el material de', child);
-            }
-        }
-    });
+    scene.add(gltf.scene);
 }, undefined, function(error) {
-    console.error('Error al cargar el modelo laberinto003.gltf:', error);
+    console.error(error);
 });
 
 // Cargar el modelo animado
@@ -38,7 +34,7 @@ loader.load('models/personaje001.gltf', function(gltf) {
     const action = mixer.clipAction(gltf.animations[0]); // Asumiendo que "caminar1" es la primera animación
     action.play();
 }, undefined, function(error) {
-    console.error('Error al cargar el modelo personaje001.gltf:', error);
+    console.error(error);
 });
 
 // Posición de la cámara
@@ -52,14 +48,6 @@ controls.enableZoom = true; // Permite el zoom
 controls.minDistance = 1; // Distancia mínima de zoom
 controls.maxDistance = 50; // Distancia máxima de zoom
 controls.target.set(0, 2, 0); // Ajusta el target para centrar la vista en ambos modelos
-
-// Cargar el HDRI
-const rgbeLoader = new THREE.RGBELoader();
-rgbeLoader.load('models/minedump_flats_2k.hdr', function(texture) {
-    texture.mapping = THREE.EquirectangularReflectionMapping;
-    scene.environment = texture;
-    scene.background = texture;
-});
 
 // Bucle de animación
 const clock = new THREE.Clock();
