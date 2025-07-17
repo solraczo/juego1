@@ -1,5 +1,4 @@
-
-        // Variables globales
+       // Variables globales
         let model, mixer, action;
         const keys = {};
         const velocity = new THREE.Vector3();
@@ -244,6 +243,3 @@
                 renderer.domElement.requestFullscreen();
             }
         });
-    </script>
-</body>
-</html>
