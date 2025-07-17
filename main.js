@@ -3,212 +3,277 @@
         const keys = {};
         const velocity = new THREE.Vector3();
         const direction = new THREE.Vector3();
-        const gravity = -9.8;
-        let isOnGround = false;
         let laberintoModel;
+        let camera, scene, renderer;
+        let isOnGround = false;
 
-        // Configuración básica de la escena
-        const scene = new THREE.Scene();
-        scene.fog = new THREE.Fog(0xa0a0a0, 10, 50);
+        // Inicialización
+        function init() {
+            // Crear escena
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); // Fondo azul cielo por defecto
+            scene.fog = new THREE.Fog(0xa0a0a0, 10, 50);
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 5, 10);
+            // Crear cámara
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 10);
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.shadowMap.enabled = true;
-        document.body.appendChild(renderer.domElement);
-
-        // Luz direccional
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-        directionalLight.position.set(5, 10, 7);
-        directionalLight.castShadow = true;
-        directionalLight.shadow.mapSize.width = 1024;
-        directionalLight.shadow.mapSize.height = 1024;
-        scene.add(directionalLight);
-
-        // Luz ambiental
-        const ambientLight = new THREE.AmbientLight(0x404040, 2);
-        scene.add(ambientLight);
-
-        // Cargador de modelos GLTF
-        const loader = new THREE.GLTFLoader();
-
-        // Cargar el modelo del laberinto
-        loader.load('models/laberinto003.gltf', function(gltf) {
-            laberintoModel = gltf.scene;
-            laberintoModel.traverse(function(child) {
-                if (child.isMesh) {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                }
+            // Crear renderer
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true,
+                alpha: true
             });
-            scene.add(laberintoModel);
-        }, undefined, function(error) {
-            console.error('Error cargando laberinto:', error);
-        });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
 
-        // Cargar el modelo del personaje
-        loader.load('models/personaje001.gltf', function(gltf) {
-            model = gltf.scene;
-            scene.add(model);
+            // Añadir luces básicas
+            addBasicLights();
+            
+            // Crear suelo temporal
+            createTempGround();
+            
+            // Cargar recursos
+            loadAssets();
+        }
+
+        function addBasicLights() {
+            // Luz direccional principal
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(5, 10, 7);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 1024;
+            directionalLight.shadow.mapSize.height = 1024;
+            scene.add(directionalLight);
+
+            // Luz ambiental
+            const ambientLight = new THREE.AmbientLight(0x404040, 3);
+            scene.add(ambientLight);
+
+            // Luz hemisférica
+            const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 1);
+            scene.add(hemisphereLight);
+        }
+
+        function createTempGround() {
+            const groundGeometry = new THREE.PlaneGeometry(50, 50);
+            const groundMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x2c3e50,
+                roughness: 0.9,
+                metalness: 0.1
+            });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -0.1;
+            ground.receiveShadow = true;
+            scene.add(ground);
+        }
+
+        function loadAssets() {
+            // Cargador de modelos GLTF
+            const loader = new THREE.GLTFLoader();
+            
+            // Intentar cargar laberinto
+            try {
+                loader.load('models/laberinto003.gltf', function(gltf) {
+                    laberintoModel = gltf.scene;
+                    scene.add(laberintoModel);
+                    updateLoadingStatus('Laberinto cargado');
+                }, undefined, function(error) {
+                    console.error('Error cargando laberinto:', error);
+                    updateLoadingStatus('Error con laberinto. Usando alternativa');
+                    createBackupMaze();
+                });
+            } catch (e) {
+                console.error('Error inicializando loader:', e);
+                createBackupMaze();
+            }
+
+            // Cargar personaje
+            try {
+                loader.load('models/personaje001.gltf', function(gltf) {
+                    model = gltf.scene;
+                    if (!model) {
+                        throw new Error('Modelo no definido');
+                    }
+                    
+                    scene.add(model);
+                    model.position.set(0, 1, 0);
+                    model.scale.set(0.8, 0.8, 0.8);
+                    
+                    // Configurar animación
+                    mixer = new THREE.AnimationMixer(model);
+                    if (gltf.animations && gltf.animations.length > 0) {
+                        action = mixer.clipAction(gltf.animations[0]);
+                        action.stop();
+                    }
+                    
+                    updateLoadingStatus('Personaje cargado');
+                    document.getElementById('loading').style.display = 'none';
+                    
+                }, undefined, function(error) {
+                    console.error('Error cargando personaje:', error);
+                    updateLoadingStatus('Error con personaje. Usando cubo');
+                    createCubeCharacter();
+                });
+            } catch (e) {
+                console.error('Error cargando personaje:', e);
+                createCubeCharacter();
+            }
+
+            // Configurar controles de teclado
+            setupControls();
+        }
+
+        function createBackupMaze() {
+            // Crear un laberinto simple con cajas
+            const mazeGroup = new THREE.Group();
+            
+            // Paredes exteriores
+            const wallGeometry = new THREE.BoxGeometry(20, 3, 1);
+            const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x3498db });
+            
+            // Norte
+            const wallNorth = new THREE.Mesh(wallGeometry, wallMaterial);
+            wallNorth.position.z = -10;
+            wallNorth.castShadow = true;
+            mazeGroup.add(wallNorth);
+            
+            // Sur
+            const wallSouth = new THREE.Mesh(wallGeometry, wallMaterial);
+            wallSouth.position.z = 10;
+            mazeGroup.add(wallSouth);
+            
+            // Este
+            const wallEast = new THREE.Mesh(wallGeometry, wallMaterial);
+            wallEast.rotation.y = Math.PI / 2;
+            wallEast.position.x = 10;
+            mazeGroup.add(wallEast);
+            
+            // Oeste
+            const wallWest = new THREE.Mesh(wallGeometry, wallMaterial);
+            wallWest.rotation.y = Math.PI / 2;
+            wallWest.position.x = -10;
+            mazeGroup.add(wallWest);
+            
+            // Pared interna
+            const innerWall = new THREE.Mesh(wallGeometry, wallMaterial);
+            innerWall.position.set(5, 1.5, 0);
+            innerWall.scale.set(0.5, 1, 1);
+            mazeGroup.add(innerWall);
+            
+            scene.add(mazeGroup);
+            laberintoModel = mazeGroup;
+        }
+
+        function createCubeCharacter() {
+            const geometry = new THREE.BoxGeometry(1, 2, 1);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: 0xe74c3c,
+                emissive: 0xff0000,
+                emissiveIntensity: 0.2
+            });
+            model = new THREE.Mesh(geometry, material);
+            model.castShadow = true;
             model.position.set(0, 1, 0);
-            model.scale.set(0.8, 0.8, 0.8);
-            model.traverse(function(child) {
-                if (child.isMesh) {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
+            scene.add(model);
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function updateLoadingStatus(message) {
+            const loadingElement = document.getElementById('loading');
+            if (loadingElement) {
+                loadingElement.textContent = message;
+            }
+        }
+
+        function setupControls() {
+            // Eventos de teclado
+            window.addEventListener('keydown', (event) => {
+                keys[event.code] = true;
+                
+                // Reset posición con R
+                if (event.code === 'KeyR' && model) {
+                    model.position.set(0, 1, 0);
                 }
             });
-            
-            // Configurar la animación
-            mixer = new THREE.AnimationMixer(model);
-            if (gltf.animations && gltf.animations.length > 0) {
-                action = mixer.clipAction(gltf.animations[0]);
-                action.stop();
-            }
-        }, undefined, function(error) {
-            console.error('Error cargando personaje:', error);
-        });
 
-        // Cargar el HDRI
-        const rgbeLoader = new THREE.RGBELoader();
-        rgbeLoader.load('models/minedump_flats_2k.hdr', function(texture) {
-            texture.mapping = THREE.EquirectangularReflectionMapping;
-            scene.environment = texture;
-            scene.background = texture;
-        }, undefined, function(error) {
-            console.error('Error cargando HDRI:', error);
-        });
+            window.addEventListener('keyup', (event) => {
+                keys[event.code] = false;
+            });
 
-        // Suelo temporal como respaldo
-        const groundGeometry = new THREE.PlaneGeometry(50, 50);
-        const groundMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x808080,
-            roughness: 0.9,
-            metalness: 0.1
-        });
-        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        ground.rotation.x = -Math.PI / 2;
-        ground.position.y = -0.1;
-        ground.receiveShadow = true;
-        scene.add(ground);
+            // Ajustar el tamaño de la ventana
+            window.addEventListener('resize', function() {
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                if (renderer) {
+                    renderer.setSize(width, height);
+                }
+                if (camera) {
+                    camera.aspect = width / height;
+                    camera.updateProjectionMatrix();
+                }
+            });
+        }
 
-        // Eventos de teclado
-        window.addEventListener('keydown', (event) => {
-            keys[event.code] = true;
-            
-            // Reset posición con R
-            if (event.code === 'KeyR' && model) {
-                model.position.set(0, 1, 0);
-            }
-        });
-
-        window.addEventListener('keyup', (event) => {
-            keys[event.code] = false;
-        });
-
-        // Función para actualizar la cámara en tercera persona
         function updateCamera() {
             if (!model) return;
             
             // Posición de la cámara: detrás y arriba del personaje
-            const cameraOffset = new THREE.Vector3(0, 3, 5);
+            const offset = new THREE.Vector3(0, 3, 5);
+            offset.applyQuaternion(model.quaternion);
             
-            // Aplicar la rotación actual del personaje
-            cameraOffset.applyQuaternion(model.quaternion);
-            
-            // Posición final de la cámara
-            camera.position.copy(model.position).add(cameraOffset);
-            
-            // La cámara mira al personaje
-            camera.lookAt(model.position.x, model.position.y + 1, model.position.z);
+            camera.position.copy(model.position).add(offset);
+            camera.lookAt(model.position.x, model.position.y + 1.5, model.position.z);
         }
-
-        // Raycaster para detección de suelo
-        const raycaster = new THREE.Raycaster();
-        const groundObjects = [];
-
-        // Bucle de animación
-        const clock = new THREE.Clock();
 
         function animate() {
             requestAnimationFrame(animate);
             
-            const delta = Math.min(clock.getDelta(), 0.1); // Limitar delta para evitar saltos
+            const delta = Math.min(clock.getDelta(), 0.1);
             
-            // Movimiento del personaje
+            // Mover personaje si existe
             if (model) {
                 // Reiniciar dirección
                 direction.set(0, 0, 0);
                 const speed = 5 * delta;
                 
-                // Detectar teclas presionadas (WASD)
-                if (keys['KeyW']) direction.z -= 1;
-                if (keys['KeyS']) direction.z += 1;
-                if (keys['KeyA']) direction.x -= 1;
-                if (keys['KeyD']) direction.x += 1;
+                // Detectar teclas
+                if (keys['KeyW'] || keys['ArrowUp']) direction.z -= 1;
+                if (keys['KeyS'] || keys['ArrowDown']) direction.z += 1;
+                if (keys['KeyA'] || keys['ArrowLeft']) direction.x -= 1;
+                if (keys['KeyD'] || keys['ArrowRight']) direction.x += 1;
                 
-                // Normalizar la dirección y aplicar velocidad
+                // Mover si hay dirección
                 if (direction.lengthSq() > 0) {
                     direction.normalize();
                     velocity.copy(direction.multiplyScalar(speed));
                     
-                    // Rotación del personaje hacia la dirección de movimiento
-                    const targetRotation = Math.atan2(velocity.x, velocity.z);
+                    // Rotación hacia la dirección
+                    model.rotation.y = Math.atan2(velocity.x, velocity.z);
                     
-                    // Interpolación suave para la rotación
-                    model.rotation.y = THREE.MathUtils.lerp(
-                        model.rotation.y,
-                        targetRotation,
-                        10 * delta
-                    );
-                    
-                    // Aplicar movimiento en el plano XZ
+                    // Aplicar movimiento
                     model.position.x += velocity.x;
                     model.position.z += velocity.z;
                     
-                    // Activar animación si no está reproduciéndose
+                    // Activar animación
                     if (action && !action.isRunning()) {
                         action.play();
                     }
                 } else {
-                    // Detener animación si no hay movimiento
+                    // Detener animación
                     if (action && action.isRunning()) {
                         action.stop();
                     }
                 }
                 
-                // Gravedad y detección de suelo
-                // Actualizar lista de objetos para detección de suelo
-                groundObjects.length = 0;
-                scene.traverse(function(object) {
-                    if (object.isMesh && object.receiveShadow) {
-                        groundObjects.push(object);
-                    }
-                });
+                // Gravedad básica
+                model.position.y -= 0.1 * delta * 60;
                 
-                // Configurar raycaster desde los pies del personaje
-                const feetPosition = new THREE.Vector3(
-                    model.position.x,
-                    model.position.y - 0.5,
-                    model.position.z
-                );
-                
-                raycaster.set(feetPosition, new THREE.Vector3(0, -1, 0));
-                const intersects = raycaster.intersectObjects(groundObjects, true);
-                
-                isOnGround = false;
-                if (intersects.length > 0 && intersects[0].distance < 1) {
-                    isOnGround = true;
-                    // Ajustar posición para que quede sobre el suelo
-                    model.position.y = intersects[0].point.y + 0.5;
-                }
-                
-                // Aplicar gravedad si no está en el suelo
-                if (!isOnGround) {
-                    model.position.y += gravity * delta * 0.5;
+                // Limitar posición Y
+                if (model.position.y < 0.5) {
+                    model.position.y = 0.5;
                 }
             }
             
@@ -220,26 +285,17 @@
             // Actualizar cámara
             updateCamera();
             
-            // Renderizar la escena
-            renderer.render(scene, camera);
+            // Renderizar escena
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
         }
 
+        // Iniciar todo
+        init();
+        
+        // Crear reloj para animaciones
+        const clock = new THREE.Clock();
+        
+        // Iniciar bucle de animación
         animate();
-
-        // Ajustar el tamaño de la ventana
-        window.addEventListener('resize', function() {
-            const width = window.innerWidth;
-            const height = window.innerHeight;
-            renderer.setSize(width, height);
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-        });
-
-        // Pantalla completa al hacer clic
-        renderer.domElement.addEventListener('click', function() {
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-            } else {
-                renderer.domElement.requestFullscreen();
-            }
-        });
