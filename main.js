@@ -2,6 +2,7 @@
         let model, mixer, action;
         const keys = {};
         const velocity = new THREE.Vector3();
+let moveVelocity = new THREE.Vector3();
         const direction = new THREE.Vector3();
         let laberintoModel;
         let camera, scene, renderer;
@@ -100,7 +101,7 @@
                     
                     scene.add(model);
                     model.position.set(0, 1, 0);
-                    model.scale.set(0.8, 0.8, 0.8);
+                    model.scale.set(0.4, 0.4, 0.4); // Reducción a la mitad
                     
                     // Configurar animación
                     mixer = new THREE.AnimationMixer(model);
@@ -249,7 +250,8 @@
                 // Mover si hay dirección
                 if (direction.lengthSq() > 0) {
                     direction.normalize();
-                    velocity.copy(direction.multiplyScalar(speed));
+                    velocity.copy(direction).normalize().multiplyScalar(speed);
+                    moveVelocity.lerp(velocity, 0.2);
                     
                     // Rotación hacia la dirección
                     const targetY = Math.atan2(velocity.x, velocity.z);
@@ -258,8 +260,8 @@
                     model.rotation.y = lerpedY;
                     
                     // Aplicar movimiento
-                    model.position.x += velocity.x;
-                    model.position.z += velocity.z;
+                    model.position.x += moveVelocity.x;
+                    model.position.z += moveVelocity.z;
                     
                     // Activar animación si hay teclas presionadas
                     if (isMoving && action && !action.isRunning()) {
