@@ -218,8 +218,7 @@ let moveVelocity = new THREE.Vector3();
             });
         }
 
-        
-function updateCamera() {
+        function updateCamera() {
     if (!model) return;
 
     const offset = new THREE.Vector3(0, 1.5, -3); // detrás y más cerca
@@ -230,6 +229,72 @@ function updateCamera() {
     camera.lookAt(model.position.x, model.position.y + 1.2, model.position.z);
 }
 
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const delta = Math.min(clock.getDelta(), 0.1);
+            
+            // Mover personaje si existe
+            if (model) {
+                const isMoving = keys['KeyW'] || keys['ArrowUp'] || keys['KeyS'] || keys['ArrowDown'] || keys['KeyA'] || keys['ArrowLeft'] || keys['KeyD'] || keys['ArrowRight'];
+                // Reiniciar dirección
+                direction.set(0, 0, 0);
+                const speed = 5 * delta;
+                
+                // Detectar teclas
+                if (keys['KeyW'] || keys['ArrowUp']) direction.z -= 1;
+                if (keys['KeyS'] || keys['ArrowDown']) direction.z += 1;
+                if (keys['KeyA'] || keys['ArrowLeft']) direction.x -= 1;
+                if (keys['KeyD'] || keys['ArrowRight']) direction.x += 1;
+                
+                // Mover si hay dirección
+                if (direction.lengthSq() > 0) {
+                    direction.normalize();
+                    velocity.copy(direction).normalize().multiplyScalar(speed);
+                    moveVelocity.lerp(velocity, 0.2);
+                    
+                    // Rotación hacia la dirección
+                    const targetY = Math.atan2(velocity.x, velocity.z);
+                    const currentY = model.rotation.y;
+                    const lerpedY = THREE.MathUtils.lerp(currentY, targetY, 0.15);
+                    model.rotation.y = lerpedY;
+                    
+                    // Aplicar movimiento
+                    model.position.x += moveVelocity.x;
+                    model.position.z += moveVelocity.z;
+                    
+                    // Activar animación si hay teclas presionadas
+                    if (isMoving && action && !action.isRunning()) {
+                        action.play();
+                    }
+                } else {
+                    // Detener animación si no hay teclas presionadas
+                    if (!isMoving && action && action.isRunning()) {
+                        action.stop();
+                    }
+                }
+                
+                // Gravedad básica
+                model.position.y -= 0.1 * delta * 60;
+                
+                // Limitar posición Y
+                if (model.position.y < 0.5) {
+                    model.position.y = 0.5;
+                }
+            }
+            
+            // Actualizar animaciones
+            if (mixer) {
+                mixer.update(delta);
+            }
+            
+            // Actualizar cámara
+            updateCamera();
+            
+            // Renderizar escena
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
         }
 
         // Iniciar todo
