@@ -239,7 +239,7 @@ let moveVelocity = new THREE.Vector3();
                 const isMoving = keys['KeyW'] || keys['ArrowUp'] || keys['KeyS'] || keys['ArrowDown'] || keys['KeyA'] || keys['ArrowLeft'] || keys['KeyD'] || keys['ArrowRight'];
                 // Reiniciar dirección
                 direction.set(0, 0, 0);
-                const speed = 5 * delta;
+                const speed = 2.5 * delta; // velocidad reducida
                 
                 // Detectar teclas
                 if (keys['KeyW'] || keys['ArrowUp']) direction.z -= 1;
