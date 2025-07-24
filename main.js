@@ -1,13 +1,13 @@
 
-// === Juego 3D básico con personaje controlable ===
-let model, mixer, actions = {}, activeAction;
+// === Juego 3D con personaje y laberinto funcional ===
+let model, mixer, actionIdle, actionWalk;
 const keys = {};
 const velocity = new THREE.Vector3();
 const direction = new THREE.Vector3();
 let camera, scene, renderer, clock;
 let jumping = false, jumpVelocity = 0;
+let laberintoModel;
 
-// Escena
 function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87CEEB);
@@ -16,48 +16,54 @@ function init() {
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, 5, 10);
 
-    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.shadowMap.enabled = true;
     document.body.appendChild(renderer.domElement);
 
-    // HUD
     const hud = document.createElement('div');
-    hud.innerHTML = 'WASD para moverse | ESPACIO para saltar | R para reiniciar';
+    hud.innerHTML = 'WASD o Flechas | Espacio: Saltar | R: Reiniciar';
     hud.style = 'position:absolute;top:10px;left:10px;color:white;font-size:18px;z-index:1;';
     document.body.appendChild(hud);
 
     addLights();
-    addGround();
-    loadModel();
+    createGround();
+    loadAssets();
     setupControls();
-
     clock = new THREE.Clock();
     animate();
 }
 
 function addLights() {
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-    dirLight.position.set(5, 10, 7);
-    dirLight.castShadow = true;
-    scene.add(dirLight);
+    const dir = new THREE.DirectionalLight(0xffffff, 1);
+    dir.position.set(5, 10, 7);
+    dir.castShadow = true;
+    dir.shadow.mapSize.set(1024, 1024);
+    scene.add(dir);
     scene.add(new THREE.AmbientLight(0x404040, 3));
     scene.add(new THREE.HemisphereLight(0xffffbb, 0x080820, 1));
 }
 
-function addGround() {
-    const geo = new THREE.PlaneGeometry(50, 50);
-    const mat = new THREE.MeshStandardMaterial({ color: 0x2c3e50 });
-    const ground = new THREE.Mesh(geo, mat);
+function createGround() {
+    const g = new THREE.PlaneGeometry(50, 50);
+    const m = new THREE.MeshStandardMaterial({ color: 0x2c3e50 });
+    const ground = new THREE.Mesh(g, m);
     ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.1;
     ground.receiveShadow = true;
     scene.add(ground);
 }
 
-function loadModel() {
+function loadAssets() {
     const loader = new THREE.GLTFLoader();
-    loader.load('models/personaje001.gltf', (gltf) => {
+
+    loader.load('models/laberinto003.gltf', gltf => {
+        laberintoModel = gltf.scene;
+        scene.add(laberintoModel);
+    }, undefined, () => createBackupMaze());
+
+    loader.load('models/personaje001.gltf', gltf => {
         model = gltf.scene;
         model.position.set(0, 1, 0);
         model.scale.set(0.8, 0.8, 0.8);
@@ -65,26 +71,51 @@ function loadModel() {
         scene.add(model);
 
         mixer = new THREE.AnimationMixer(model);
-        gltf.animations.forEach((clip, i) => {
-            const name = i === 0 ? 'idle' : 'walk';
-            actions[name] = mixer.clipAction(clip);
-        });
-        setAction('idle');
-    });
+        if (gltf.animations.length > 1) {
+            actionIdle = mixer.clipAction(gltf.animations[0]);
+            actionWalk = mixer.clipAction(gltf.animations[1]);
+            actionIdle.play();
+        }
+    }, undefined, () => createCubeCharacter());
 }
 
-function setAction(name) {
-    if (activeAction !== actions[name]) {
-        if (activeAction) activeAction.fadeOut(0.3);
-        activeAction = actions[name];
-        if (activeAction) {
-            activeAction.reset().fadeIn(0.3).play();
-        }
-    }
+function createCubeCharacter() {
+    const geo = new THREE.BoxGeometry(1, 2, 1);
+    const mat = new THREE.MeshStandardMaterial({ color: 0xe74c3c });
+    model = new THREE.Mesh(geo, mat);
+    model.position.set(0, 1, 0);
+    scene.add(model);
+}
+
+function createBackupMaze() {
+    const maze = new THREE.Group();
+    const wallGeo = new THREE.BoxGeometry(20, 3, 1);
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x3498db });
+
+    const wallNorth = new THREE.Mesh(wallGeo, wallMat);
+    wallNorth.position.z = -10; maze.add(wallNorth);
+
+    const wallSouth = new THREE.Mesh(wallGeo, wallMat);
+    wallSouth.position.z = 10; maze.add(wallSouth);
+
+    const wallEast = new THREE.Mesh(wallGeo, wallMat);
+    wallEast.rotation.y = Math.PI / 2;
+    wallEast.position.x = 10; maze.add(wallEast);
+
+    const wallWest = new THREE.Mesh(wallGeo, wallMat);
+    wallWest.rotation.y = Math.PI / 2;
+    wallWest.position.x = -10; maze.add(wallWest);
+
+    const innerWall = new THREE.Mesh(wallGeo, wallMat);
+    innerWall.position.set(5, 1.5, 0);
+    innerWall.scale.set(0.5, 1, 1);
+    maze.add(innerWall);
+
+    scene.add(maze);
 }
 
 function setupControls() {
-    window.addEventListener('keydown', (e) => {
+    window.addEventListener('keydown', e => {
         keys[e.code] = true;
         if (e.code === 'KeyR' && model) model.position.set(0, 1, 0);
         if (e.code === 'Space' && !jumping) {
@@ -92,21 +123,20 @@ function setupControls() {
             jumpVelocity = 0.15;
         }
     });
-    window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+    window.addEventListener('keyup', e => keys[e.code] = false);
     window.addEventListener('resize', () => {
-        const w = window.innerWidth, h = window.innerHeight;
-        renderer.setSize(w, h);
-        camera.aspect = w / h;
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
     });
 }
 
-const camTarget = new THREE.Vector3();
+const camOffset = new THREE.Vector3();
 function updateCamera() {
     if (!model) return;
-    const offset = new THREE.Vector3(0, 3, 5).applyQuaternion(model.quaternion);
-    camTarget.copy(model.position).add(offset);
-    camera.position.lerp(camTarget, 0.1);
+    camOffset.set(0, 3, 5).applyQuaternion(model.quaternion);
+    const targetPos = model.position.clone().add(camOffset);
+    camera.position.lerp(targetPos, 0.1);
     camera.lookAt(model.position.x, model.position.y + 1.5, model.position.z);
 }
 
@@ -123,18 +153,24 @@ function animate() {
         if (keys['KeyA'] || keys['ArrowLeft']) direction.x -= 1;
         if (keys['KeyD'] || keys['ArrowRight']) direction.x += 1;
 
-        if (direction.lengthSq() > 0) {
+        const moving = direction.lengthSq() > 0;
+        if (moving) {
             direction.normalize();
             velocity.copy(direction.multiplyScalar(speed));
             model.rotation.y = Math.atan2(velocity.x, velocity.z);
             model.position.x += velocity.x;
             model.position.z += velocity.z;
-            setAction('walk');
+            if (actionWalk && !actionWalk.isRunning()) {
+                actionIdle?.stop();
+                actionWalk.play();
+            }
         } else {
-            setAction('idle');
+            if (actionWalk && actionWalk.isRunning()) {
+                actionWalk.stop();
+                actionIdle?.play();
+            }
         }
 
-        // Salto y gravedad
         if (jumping) {
             model.position.y += jumpVelocity;
             jumpVelocity -= 0.01;
