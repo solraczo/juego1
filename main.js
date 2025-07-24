@@ -252,7 +252,10 @@
                     velocity.copy(direction.multiplyScalar(speed));
                     
                     // Rotación hacia la dirección
-                    model.rotation.y = Math.atan2(velocity.x, velocity.z);
+                    const targetY = Math.atan2(velocity.x, velocity.z);
+                    const currentY = model.rotation.y;
+                    const lerpedY = THREE.MathUtils.lerp(currentY, targetY, 0.15);
+                    model.rotation.y = lerpedY;
                     
                     // Aplicar movimiento
                     model.position.x += velocity.x;
