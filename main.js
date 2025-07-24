@@ -106,7 +106,7 @@
                     mixer = new THREE.AnimationMixer(model);
                     if (gltf.animations && gltf.animations.length > 0) {
                         action = mixer.clipAction(gltf.animations[0]);
-                        action.play(); // idle activo por defecto
+                        action.stop();
                         action = mixer.clipAction(gltf.animations[0]);
                         action.stop();
                     }
@@ -259,14 +259,14 @@
                     model.position.x += velocity.x;
                     model.position.z += velocity.z;
                     
-                    // Al moverse, detener la animación idle
-                    if (action && action.isRunning()) {
-                        action.stop();
-                    }
-                } else {
-                    // Al detenerse, activar la animación idle
+                    // Activar animación solo al moverse
                     if (action && !action.isRunning()) {
                         action.play();
+                    }
+                } else {
+                    // Detener animación al dejar de moverse
+                    if (action && action.isRunning()) {
+                        action.stop();
                     }
                 }
                 
