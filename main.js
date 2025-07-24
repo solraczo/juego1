@@ -107,8 +107,6 @@
                     if (gltf.animations && gltf.animations.length > 0) {
                         action = mixer.clipAction(gltf.animations[0]);
                         action.stop();
-                        action = mixer.clipAction(gltf.animations[0]);
-                        action.stop();
                     }
                     
                     updateLoadingStatus('Personaje cargado');
@@ -237,6 +235,7 @@
             
             // Mover personaje si existe
             if (model) {
+                const isMoving = keys['KeyW'] || keys['ArrowUp'] || keys['KeyS'] || keys['ArrowDown'] || keys['KeyA'] || keys['ArrowLeft'] || keys['KeyD'] || keys['ArrowRight'];
                 // Reiniciar dirección
                 direction.set(0, 0, 0);
                 const speed = 5 * delta;
@@ -259,13 +258,13 @@
                     model.position.x += velocity.x;
                     model.position.z += velocity.z;
                     
-                    // Activar animación solo al moverse
-                    if (action && !action.isRunning()) {
+                    // Activar animación si hay teclas presionadas
+                    if (isMoving && action && !action.isRunning()) {
                         action.play();
                     }
                 } else {
-                    // Detener animación al dejar de moverse
-                    if (action && action.isRunning()) {
+                    // Detener animación si no hay teclas presionadas
+                    if (!isMoving && action && action.isRunning()) {
                         action.stop();
                     }
                 }
