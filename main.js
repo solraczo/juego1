@@ -255,7 +255,7 @@ if (model) {
     // Mover hacia adelante
     if (isMovingForward) {
         // Dirección adelante según rotación actual
-        const forward = new THREE.Vector3(0, 0, -1);
+        const forward = new THREE.Vector3(0, 0, 1);
         forward.applyQuaternion(model.quaternion);
         model.position.add(forward.multiplyScalar(speed));
     }
