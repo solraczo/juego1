@@ -100,8 +100,8 @@ let moveVelocity = new THREE.Vector3();
                     }
                     
                     scene.add(model);
-                    model.position.set(0, 0.1, 0);
-                    model.scale.set(0.6, 0.6, 0.6); // Reducción a la mitad
+                    model.position.set(0, 0, 0);
+                    model.scale.set(0.8, 0.8, 0.8); // Reducción a la mitad
                     
                     // Configurar animación
                     mixer = new THREE.AnimationMixer(model);
