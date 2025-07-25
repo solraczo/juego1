@@ -196,7 +196,7 @@ let moveVelocity = new THREE.Vector3();
                 
                 // Reset posición con R
                 if (event.code === 'KeyR' && model) {
-                    model.position.set(0, 1, 0);
+                    model.position.set(0, 0, 0);
                 }
             });
 
@@ -241,7 +241,7 @@ if (model) {
     const isMovingForward = keys['KeyW'] || keys['ArrowUp'];
     const isTurningLeft = keys['KeyA'] || keys['ArrowLeft'];
     const isTurningRight = keys['KeyD'] || keys['ArrowRight'];
-    const speed = 2.5 * delta;
+    const speed = 1.2 * delta;
     const turnSpeed = 2.5 * delta; // velocidad de giro
 
     // Rotar personaje
