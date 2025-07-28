@@ -370,6 +370,3 @@
         // --- Iniciar la aplicación ---
         init(); // Llama a la función de inicialización para configurar todo
         animate(); // Inicia el bucle de animación
-    </script>
-</body>
-</html>
