@@ -5,7 +5,6 @@ let mazeColliders = [];
 let camera, scene, renderer;
 const clock = new THREE.Clock();
 
-// Inicialización
 function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87CEEB);
@@ -53,16 +52,23 @@ function loadAssets() {
         laberintoModel.scale.set(2, 2, 2);
         scene.add(laberintoModel);
 
-        // Asegurar matrices actualizadas
+        // Asegura que todas las matrices estén correctas
         laberintoModel.updateMatrixWorld(true);
 
         mazeColliders = [];
+
         laberintoModel.traverse((child) => {
             if (child.isMesh && child.geometry) {
+                child.updateMatrixWorld(true); // CRUCIAL
                 child.geometry.computeBoundingBox();
+
                 const box = child.geometry.boundingBox.clone();
                 box.applyMatrix4(child.matrixWorld);
                 mazeColliders.push(box);
+
+                // Visualizar colisiones
+                const helper = new THREE.Box3Helper(box, 0xff0000);
+                scene.add(helper);
             }
         });
     });
@@ -71,7 +77,7 @@ function loadAssets() {
     loader.load('models/personaje001.gltf', (gltf) => {
         model = gltf.scene;
         model.scale.set(0.8, 0.8, 0.8);
-        model.position.set(0, 0, -5); // Posición inicial más segura
+        model.position.set(0, 0, -5);
         scene.add(model);
 
         mixer = new THREE.AnimationMixer(model);
