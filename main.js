@@ -272,8 +272,8 @@ if (model) {
     model.position.y -= 0.1 * delta * 60;
 
     // Limitar posición Y
-    if (model.position.y < 0.5) {
-        model.position.y = 0.5;
+    if (model.position.y < 0) {
+        model.position.y = 0;
     }
 }
 // ...existing code...            
