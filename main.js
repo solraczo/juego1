@@ -66,7 +66,7 @@ let moveVelocity = new THREE.Vector3();
             });
             const ground = new THREE.Mesh(groundGeometry, groundMaterial);
             ground.rotation.x = -Math.PI / 2;
-            ground.position.y = -0.1;
+            ground.position.y = 0;
             ground.receiveShadow = true;
             scene.add(ground);
         }
@@ -100,7 +100,7 @@ let moveVelocity = new THREE.Vector3();
                     }
                     
                     scene.add(model);
-                    model.position.set(0, 0, 0);
+                    model.position.set(0, 0, -0.1);
                     model.scale.set(0.8, 0.8, 0.8); // Reducción a la mitad
                     
                     // Configurar animación
@@ -258,7 +258,7 @@ if (model) {
         const forward = new THREE.Vector3(0, 0, 1);
         forward.applyQuaternion(model.quaternion);
         model.position.add(forward.multiplyScalar(speed));
-            model.position.y = 0.5; // Mantener pegado al suelo
+        model.position.y = 0.5; // Mantener pegado al suelo
     }
 
     // Animación
