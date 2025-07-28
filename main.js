@@ -7,7 +7,6 @@ let moveVelocity = new THREE.Vector3();
         let laberintoModel;
         let camera, scene, renderer;
         let isOnGround = false;
-        let wallColliders = []; // Array global para colisionadores
 
         // Inicialización
         function init() {
@@ -83,15 +82,8 @@ let moveVelocity = new THREE.Vector3();
                     laberintoModel.scale.set(2, 2, 2); // Escala el laberinto al doble de tamaño
                     scene.add(laberintoModel);
                     updateLoadingStatus('Laberinto cargado');
-// Crear colisionadores de paredes
-        wallColliders = [];
-        laberintoModel.traverse(function(child) {
-            if (child.isMesh) {
-                // Puedes filtrar por nombre si tus paredes tienen un nombre específico
-                wallColliders.push(new THREE.Box3().setFromObject(child));
-            }
-        });
 
+                    
                 }, undefined, function(error) {
                     console.error('Error cargando laberinto:', error);
                     updateLoadingStatus('Error con laberinto. Usando alternativa');
@@ -137,7 +129,6 @@ let moveVelocity = new THREE.Vector3();
             // Configurar controles de teclado
             setupControls();
         }
-
 
         function createCubeCharacter() {
             const geometry = new THREE.BoxGeometry(1, 2, 1);
@@ -224,32 +215,14 @@ if (model) {
     }
 
     // Mover hacia adelante
-if (isMovingForward) {
+    if (isMovingForward) {
+        // Dirección adelante según rotación actual
         const forward = new THREE.Vector3(0, 0, 1);
         forward.applyQuaternion(model.quaternion);
-        const nextPosition = model.position.clone().add(forward.multiplyScalar(speed));
-        nextPosition.y = 0;
-
-        // Crear un Box3 para el personaje en la posición futura
-        const playerBox = new THREE.Box3().setFromCenterAndSize(
-            nextPosition,
-            new THREE.Vector3(1, 2, 1) // Ajusta al tamaño de tu personaje
-        );
-
-        // Verificar colisión con cada pared del laberinto GLTF
-        let collision = false;
-        for (const wallBox of wallColliders) {
-            if (playerBox.intersectsBox(wallBox)) {
-                collision = true;
-                break;
-            }
-        }
-
-        // Solo mover si no hay colisión
-        if (!collision) {
-            model.position.copy(nextPosition);
-        }
+        model.position.add(forward.multiplyScalar(speed));
+        model.position.y = 0; // Mantener pegado al suelo
     }
+
     // Animación
     if ((isMovingForward || isTurningLeft || isTurningRight) && action && !action.isRunning()) {
         action.play();
