@@ -258,6 +258,7 @@ if (model) {
         const forward = new THREE.Vector3(0, 0, 1);
         forward.applyQuaternion(model.quaternion);
         model.position.add(forward.multiplyScalar(speed));
+            model.position.y = 0.5; // Mantener pegado al suelo
     }
 
     // Animación
