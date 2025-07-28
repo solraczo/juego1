@@ -79,7 +79,7 @@ let moveVelocity = new THREE.Vector3();
             try {
                 loader.load('models/laberinto003.gltf', function(gltf) {
                     laberintoModel = gltf.scene;
-                        laberintoModel.scale.set(2, 2, 2); // Escala el laberinto al doble de tamaño
+                        laberintoModel.scale.set(4, 4, 4); // Escala el laberinto al doble de tamaño
                     scene.add(laberintoModel);
                     updateLoadingStatus('Laberinto cargado');
                 }, undefined, function(error) {
