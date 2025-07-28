@@ -1,8 +1,8 @@
 let model, mixer, action;
-const keys = {};
-let laberintoModel;
+let colliderBox; // Cubo invisible que representa la colisión del personaje
 let mazeColliders = [];
 let camera, scene, renderer;
+const keys = {};
 const clock = new THREE.Clock();
 
 function init() {
@@ -21,6 +21,7 @@ function init() {
 
     addLights();
     createGround();
+    createColliderBox();
     loadAssets();
 }
 
@@ -43,41 +44,44 @@ function createGround() {
     scene.add(ground);
 }
 
+function createColliderBox() {
+    const geometry = new THREE.BoxGeometry(1, 2, 1); // Tamaño del personaje
+    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true, visible: false });
+    colliderBox = new THREE.Mesh(geometry, material);
+    colliderBox.position.set(0, 1, -5); // Altura y posición inicial
+    scene.add(colliderBox);
+}
+
 function loadAssets() {
     const loader = new THREE.GLTFLoader();
 
-    // Laberinto
     loader.load('models/laberinto003.gltf', (gltf) => {
-        laberintoModel = gltf.scene;
+        const laberintoModel = gltf.scene;
         laberintoModel.scale.set(2, 2, 2);
         scene.add(laberintoModel);
 
-        // Asegura que todas las matrices estén correctas
         laberintoModel.updateMatrixWorld(true);
 
         mazeColliders = [];
 
         laberintoModel.traverse((child) => {
             if (child.isMesh && child.geometry) {
-                child.updateMatrixWorld(true); // CRUCIAL
+                child.updateMatrixWorld(true);
                 child.geometry.computeBoundingBox();
-
-                const box = child.geometry.boundingBox.clone();
-                box.applyMatrix4(child.matrixWorld);
+                const box = child.geometry.boundingBox.clone().applyMatrix4(child.matrixWorld);
                 mazeColliders.push(box);
 
-                // Visualizar colisiones
+                // Visual debug
                 const helper = new THREE.Box3Helper(box, 0xff0000);
                 scene.add(helper);
             }
         });
     });
 
-    // Personaje
     loader.load('models/personaje001.gltf', (gltf) => {
         model = gltf.scene;
         model.scale.set(0.8, 0.8, 0.8);
-        model.position.set(0, 0, -5);
+        model.position.copy(colliderBox.position);
         scene.add(model);
 
         mixer = new THREE.AnimationMixer(model);
@@ -93,7 +97,7 @@ function loadAssets() {
 function setupControls() {
     window.addEventListener('keydown', (e) => {
         keys[e.code] = true;
-        if (e.code === 'KeyR' && model) model.position.set(0, 0, 0);
+        if (e.code === 'KeyR') colliderBox.position.set(0, 1, -5);
     });
     window.addEventListener('keyup', (e) => keys[e.code] = false);
 
@@ -105,15 +109,13 @@ function setupControls() {
 }
 
 function checkCollision(newPos) {
-    if (!model) return false;
-
-    const tempBox = new THREE.Box3().setFromObject(model);
-    const delta = newPos.clone().sub(model.position);
+    const tempBox = new THREE.Box3().setFromObject(colliderBox);
+    const delta = newPos.clone().sub(colliderBox.position);
     tempBox.translate(delta);
 
     for (const box of mazeColliders) {
         if (box.intersectsBox(tempBox)) {
-            console.log("Colisión detectada");
+            console.log("🚫 Colisión con muro");
             return true;
         }
     }
@@ -121,38 +123,43 @@ function checkCollision(newPos) {
 }
 
 function updateCamera() {
-    if (!model) return;
-    const offset = new THREE.Vector3(0, 1.5, -3).applyQuaternion(model.quaternion);
-    const target = model.position.clone().add(offset);
+    if (!colliderBox) return;
+    const offset = new THREE.Vector3(0, 1.5, -3).applyQuaternion(colliderBox.quaternion);
+    const target = colliderBox.position.clone().add(offset);
     camera.position.lerp(target, 0.1);
-    camera.lookAt(model.position.x, model.position.y + 1.2, model.position.z);
+    camera.lookAt(colliderBox.position.x, colliderBox.position.y + 1.2, colliderBox.position.z);
 }
 
 function animate() {
     requestAnimationFrame(animate);
     const delta = Math.min(clock.getDelta(), 0.1);
 
-    if (model) {
+    if (colliderBox) {
         const forward = keys['KeyW'] || keys['ArrowUp'];
         const left = keys['KeyA'] || keys['ArrowLeft'];
         const right = keys['KeyD'] || keys['ArrowRight'];
         const speed = 1.2 * delta;
         const turnSpeed = 2.5 * delta;
 
-        if (left) model.rotation.y += turnSpeed;
-        if (right) model.rotation.y -= turnSpeed;
+        if (left) colliderBox.rotation.y += turnSpeed;
+        if (right) colliderBox.rotation.y -= turnSpeed;
 
         if (forward) {
-            const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(model.quaternion);
-            const newPos = model.position.clone().add(dir.multiplyScalar(speed));
+            const dir = new THREE.Vector3(0, 0, 1).applyEuler(colliderBox.rotation);
+            const newPos = colliderBox.position.clone().add(dir.multiplyScalar(speed));
             if (!checkCollision(newPos)) {
-                model.position.copy(newPos);
-                model.position.y = 0;
+                colliderBox.position.copy(newPos);
             }
         }
 
-        if ((forward || left || right) && action && !action.isRunning()) action.play();
-        if (!forward && !left && !right && action && action.isRunning()) action.stop();
+        // Mueve el modelo visible al mismo lugar que el collider
+        if (model) {
+            model.position.copy(colliderBox.position);
+            model.rotation.copy(colliderBox.rotation);
+
+            if ((forward || left || right) && action && !action.isRunning()) action.play();
+            if (!forward && !left && !right && action && action.isRunning()) action.stop();
+        }
     }
 
     if (mixer) mixer.update(delta);
