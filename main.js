@@ -127,47 +127,46 @@ let moveVelocity = new THREE.Vector3();
             setupControls();
         }
 
-        function createBackupMaze() {
-            // Crear un laberinto simple con cajas
-            const mazeGroup = new THREE.Group();
-            
-            // Paredes exteriores
-            const wallGeometry = new THREE.BoxGeometry(20, 3, 1);
-            const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x3498db });
-            
-            // Norte
-            const wallNorth = new THREE.Mesh(wallGeometry, wallMaterial);
-            wallNorth.position.z = -10;
-            wallNorth.castShadow = true;
-            mazeGroup.add(wallNorth);
-            
-            // Sur
-            const wallSouth = new THREE.Mesh(wallGeometry, wallMaterial);
-            wallSouth.position.z = 10;
-            mazeGroup.add(wallSouth);
-            
-            // Este
-            const wallEast = new THREE.Mesh(wallGeometry, wallMaterial);
-            wallEast.rotation.y = Math.PI / 2;
-            wallEast.position.x = 10;
-            mazeGroup.add(wallEast);
-            
-            // Oeste
-            const wallWest = new THREE.Mesh(wallGeometry, wallMaterial);
-            wallWest.rotation.y = Math.PI / 2;
-            wallWest.position.x = -10;
-            mazeGroup.add(wallWest);
-            
-            // Pared interna
-            const innerWall = new THREE.Mesh(wallGeometry, wallMaterial);
-            innerWall.position.set(5, 1.5, 0);
-            innerWall.scale.set(0.5, 1, 1);
-            mazeGroup.add(innerWall);
-            
-            scene.add(mazeGroup);
-            laberintoModel = mazeGroup;
-        }
+function createBackupMaze() {
+    // Crear un laberinto simple con cajas
+    const mazeGroup = new THREE.Group();
 
+    // Tamaño aumentado
+    const wallGeometry = new THREE.BoxGeometry(40, 3, 1); // ancho x alto x profundidad
+    const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x3498db });
+
+    // Norte
+    const wallNorth = new THREE.Mesh(wallGeometry, wallMaterial);
+    wallNorth.position.z = -20;
+    wallNorth.castShadow = true;
+    mazeGroup.add(wallNorth);
+
+    // Sur
+    const wallSouth = new THREE.Mesh(wallGeometry, wallMaterial);
+    wallSouth.position.z = 20;
+    mazeGroup.add(wallSouth);
+
+    // Este
+    const wallEast = new THREE.Mesh(wallGeometry, wallMaterial);
+    wallEast.rotation.y = Math.PI / 2;
+    wallEast.position.x = 20;
+    mazeGroup.add(wallEast);
+
+    // Oeste
+    const wallWest = new THREE.Mesh(wallGeometry, wallMaterial);
+    wallWest.rotation.y = Math.PI / 2;
+    wallWest.position.x = -20;
+    mazeGroup.add(wallWest);
+
+    // Pared interna (ajustada)
+    const innerWall = new THREE.Mesh(wallGeometry, wallMaterial);
+    innerWall.position.set(10, 1.5, 0);
+    innerWall.scale.set(0.5, 1, 1);
+    mazeGroup.add(innerWall);
+
+    scene.add(mazeGroup);
+    laberintoModel = mazeGroup;
+}
         function createCubeCharacter() {
             const geometry = new THREE.BoxGeometry(1, 2, 1);
             const material = new THREE.MeshStandardMaterial({ 
