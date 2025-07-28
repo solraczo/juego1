@@ -269,7 +269,7 @@ if (model) {
     }
 
     // Gravedad básica
-    model.position.y -= 0.1 * delta * 60;
+    model.position.y -= 0 * delta * 60;
 
     // Limitar posición Y
     if (model.position.y < 0) {
