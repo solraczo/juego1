@@ -145,12 +145,13 @@ function animate() {
         if (right) colliderBox.rotation.y -= turnSpeed;
 
         if (forward) {
-            const dir = new THREE.Vector3(0, 0, 1).applyEuler(colliderBox.rotation);
-            const newPos = colliderBox.position.clone().add(dir.multiplyScalar(speed));
-            if (!checkCollision(newPos)) {
-                colliderBox.position.copy(newPos);
-            }
-        }
+    const dir = new THREE.Vector3(0, 0, 1).applyEuler(colliderBox.rotation);
+    const newPos = colliderBox.position.clone().add(dir.multiplyScalar(speed));
+    
+    // 🚫 Desactivamos las colisiones temporalmente
+    colliderBox.position.copy(newPos);
+}
+
 
         // Mueve el modelo visible al mismo lugar que el collider
         if (model) {
