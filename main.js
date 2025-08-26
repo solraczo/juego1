@@ -58,8 +58,9 @@ function loadAssets() {
     loader.load('models/laberinto003.gltf', (gltf) => {
         const laberintoModel = gltf.scene;
         laberintoModel.scale.set(2, 2, 2);
+        laberintoModel.position.y = 0.08;
         scene.add(laberintoModel);
-laberintoModel.position.y = 0.05;
+
         laberintoModel.updateMatrixWorld(true);
 
         mazeColliders = [];
@@ -144,13 +145,17 @@ function animate() {
         if (left) colliderBox.rotation.y += turnSpeed;
         if (right) colliderBox.rotation.y -= turnSpeed;
 
-        if (forward) {
-            const dir = new THREE.Vector3(0, 0, 1).applyEuler(colliderBox.rotation);
-            const newPos = colliderBox.position.clone().add(dir.multiplyScalar(speed));
-            if (!checkCollision(newPos)) {
-                colliderBox.position.copy(newPos);
-            }
-        }
+if (forward) {
+    // Vector hacia adelante en coordenadas locales
+    const dir = new THREE.Vector3(0, 0, 1);
+    dir.applyQuaternion(colliderBox.quaternion); // aplica la rotación real
+    dir.normalize();
+
+    const newPos = colliderBox.position.clone().add(dir.multiplyScalar(speed));
+    if (!checkCollision(newPos)) {
+        colliderBox.position.copy(newPos);
+    }
+}
 
         // Mueve el modelo visible al mismo lugar que el collider
         if (model) {
