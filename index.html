@@ -3,17 +3,577 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visualización 3D con Three.js</title>
+    <title>Laberinto 3D - Three.js</title>
     <style>
-        body { margin: 0; }
-        canvas { display: block; }
+        body { 
+            margin: 0; 
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+        }
+        canvas { 
+            display: block; 
+        }
+        
+        /* Interfaz de usuario */
+        #ui-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .screen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            pointer-events: all;
+            transition: opacity 0.5s;
+        }
+        
+        #game-ui {
+            justify-content: flex-start;
+            padding-top: 20px;
+            background: transparent;
+            pointer-events: none;
+        }
+        
+        #start-screen {
+            z-index: 10;
+        }
+        
+        #end-screen {
+            z-index: 10;
+            opacity: 0;
+            display: none;
+        }
+        
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 2rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        button {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        #collectibles-counter {
+            font-size: 1.5rem;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        #timer {
+            font-size: 1.2rem;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 8px 15px;
+            border-radius: 10px;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
+    <div id="ui-container">
+        <div id="start-screen" class="screen">
+            <h1>LABERINTO 3D</h1>
+            <p>Usa las teclas W, A, D o flechas para moverte</p>
+            <p>Encuentra todos los objetos y llega a la meta</p>
+            <button id="start-button">Comenzar</button>
+        </div>
+        
+        <div id="game-ui" class="screen">
+            <div id="collectibles-counter">Objetos: 0/5</div>
+            <div id="timer">Tiempo: 00:00</div>
+        </div>
+        
+        <div id="end-screen" class="screen">
+            <h1 id="end-title">¡Felicidades!</h1>
+            <p id="end-message">Has completado el laberinto</p>
+            <p id="end-stats">Tiempo: 00:00 - Objetos: 0/5</p>
+            <button id="restart-button">Jugar de nuevo</button>
+        </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/RGBELoader.js"></script>
-    <script src="main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/objects/Water.js"></script>
+    <script>
+        // Variables globales
+        let model, mixer, action;
+        let colliderBox;
+        let mazeColliders = [];
+        let collectibles = [];
+        let endPoint = null;
+        let camera, scene, renderer;
+        const keys = {};
+        const clock = new THREE.Clock();
+        
+        // Variables de juego
+        let gameStarted = false;
+        let collectedCount = 0;
+        let totalCollectibles = 5;
+        let startTime = 0;
+        let currentTime = 0;
+        let gameTimer = null;
+
+        // Elementos de UI
+        const startScreen = document.getElementById('start-screen');
+        const gameUI = document.getElementById('game-ui');
+        const endScreen = document.getElementById('end-screen');
+        const collectiblesCounter = document.getElementById('collectibles-counter');
+        const timerElement = document.getElementById('timer');
+        const endTitle = document.getElementById('end-title');
+        const endMessage = document.getElementById('end-message');
+        const endStats = document.getElementById('end-stats');
+        const startButton = document.getElementById('start-button');
+        const restartButton = document.getElementById('restart-button');
+
+        // Inicialización
+        function init() {
+            scene = new THREE.Scene();
+            
+            // Mejorar el fondo con skybox
+            const skyboxLoader = new THREE.CubeTextureLoader();
+            const skyboxTexture = skyboxLoader.load([
+                'https://threejs.org/examples/textures/cube/skybox/px.jpg',
+                'https://threejs.org/examples/textures/cube/skybox/nx.jpg',
+                'https://threejs.org/examples/textures/cube/skybox/py.jpg',
+                'https://threejs.org/examples/textures/cube/skybox/ny.jpg',
+                'https://threejs.org/examples/textures/cube/skybox/pz.jpg',
+                'https://threejs.org/examples/textures/cube/skybox/nz.jpg'
+            ]);
+            scene.background = skyboxTexture;
+            
+            scene.fog = new THREE.Fog(0xa0a0a0, 10, 50);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 10);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+
+            addLights();
+            createGround();
+            createColliderBox();
+            loadAssets();
+            setupUIEvents();
+        }
+
+        function addLights() {
+            // Luz direccional principal (sol)
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+            dirLight.position.set(5, 10, 7);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            scene.add(dirLight);
+
+            // Luz ambiental
+            scene.add(new THREE.AmbientLight(0x404040, 0.8));
+            
+            // Luz hemisférica para mejor iluminación ambiental
+            scene.add(new THREE.HemisphereLight(0xffffbb, 0x080820, 0.6));
+            
+            // Luces puntuales para efectos
+            const pointLight1 = new THREE.PointLight(0xff4000, 1, 10);
+            pointLight1.position.set(5, 2, 0);
+            pointLight1.castShadow = true;
+            scene.add(pointLight1);
+            
+            const pointLight2 = new THREE.PointLight(0x0040ff, 1, 10);
+            pointLight2.position.set(-5, 2, 0);
+            pointLight2.castShadow = true;
+            scene.add(pointLight2);
+        }
+
+        function createGround() {
+            const geometry = new THREE.PlaneGeometry(50, 50);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: 0x2c3e50, 
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            const ground = new THREE.Mesh(geometry, material);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            
+            // Añadir textura de hierba o patrón para mejor apariencia
+            const gridHelper = new THREE.GridHelper(50, 50, 0xffffff, 0xffffff);
+            gridHelper.material.opacity = 0.1;
+            gridHelper.material.transparent = true;
+            scene.add(gridHelper);
+        }
+
+        function createColliderBox() {
+            const geometry = new THREE.BoxGeometry(1, 2, 1);
+            const material = new THREE.MeshBasicMaterial({ 
+                color: 0x00ff00, 
+                wireframe: true, 
+                visible: false 
+            });
+            colliderBox = new THREE.Mesh(geometry, material);
+            colliderBox.position.set(0, 1, -5);
+            scene.add(colliderBox);
+        }
+
+        function loadAssets() {
+            const loader = new THREE.GLTFLoader();
+
+            // Cargar laberinto
+            loader.load('models/laberinto003.gltf', (gltf) => {
+                const laberintoModel = gltf.scene;
+                laberintoModel.scale.set(2, 2, 2);
+                scene.add(laberintoModel);
+
+                laberintoModel.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                        
+                        // Generar colisiones
+                        child.updateMatrixWorld(true);
+                        if (child.geometry) {
+                            child.geometry.computeBoundingBox();
+                            const box = child.geometry.boundingBox.clone().applyMatrix4(child.matrixWorld);
+                            mazeColliders.push(box);
+                        }
+                    }
+                });
+                
+                // Crear objetos coleccionables
+                createCollectibles();
+                
+                // Crear punto final
+                createEndPoint();
+            });
+
+            // Cargar personaje
+            loader.load('models/personaje001.gltf', (gltf) => {
+                model = gltf.scene;
+                model.scale.set(0.8, 0.8, 0.8);
+                model.position.copy(colliderBox.position);
+                scene.add(model);
+
+                mixer = new THREE.AnimationMixer(model);
+                if (gltf.animations.length > 0) {
+                    action = mixer.clipAction(gltf.animations[0]);
+                    action.stop();
+                }
+            });
+
+            setupControls();
+        }
+        
+        function createCollectibles() {
+            const geometry = new THREE.SphereGeometry(0.3, 16, 16);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: 0xffdd00, 
+                emissive: 0xffaa00,
+                emissiveIntensity: 0.5,
+                metalness: 0.8,
+                roughness: 0.2
+            });
+            
+            // Posiciones predefinidas para los objetos (ajustar según el laberinto)
+            const positions = [
+                new THREE.Vector3(8, 1, -8),
+                new THREE.Vector3(-6, 1, 10),
+                new THREE.Vector3(12, 1, 4),
+                new THREE.Vector3(-10, 1, -4),
+                new THREE.Vector3(0, 1, 12)
+            ];
+            
+            for (let i = 0; i < totalCollectibles; i++) {
+                const collectible = new THREE.Mesh(geometry, material);
+                collectible.position.copy(positions[i]);
+                collectible.castShadow = true;
+                collectible.userData.isCollectible = true;
+                scene.add(collectible);
+                collectibles.push(collectible);
+            }
+        }
+        
+        function createEndPoint() {
+            const geometry = new THREE.CylinderGeometry(1, 1, 0.2, 32);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: 0x00ff00,
+                emissive: 0x00aa00,
+                emissiveIntensity: 0.3
+            });
+            
+            endPoint = new THREE.Mesh(geometry, material);
+            endPoint.position.set(15, 0.1, 15);
+            endPoint.rotation.x = Math.PI / 2;
+            endPoint.userData.isEndPoint = true;
+            scene.add(endPoint);
+            
+            // Añadir efecto de partículas o luz al punto final
+            const pointLight = new THREE.PointLight(0x00ff00, 1, 5);
+            pointLight.position.copy(endPoint.position);
+            pointLight.position.y = 1;
+            scene.add(pointLight);
+        }
+
+        function setupControls() {
+            window.addEventListener('keydown', (e) => {
+                if (!gameStarted) return;
+                
+                keys[e.code] = true;
+                
+                // Reiniciar posición con R
+                if (e.code === 'KeyR') {
+                    resetPlayerPosition();
+                }
+            });
+            
+            window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+            window.addEventListener('resize', () => {
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+            });
+        }
+        
+        function setupUIEvents() {
+            startButton.addEventListener('click', startGame);
+            restartButton.addEventListener('click', restartGame);
+        }
+        
+        function startGame() {
+            gameStarted = true;
+            startScreen.classList.add('hidden');
+            gameUI.classList.remove('hidden');
+            
+            // Iniciar temporizador
+            startTime = Date.now();
+            gameTimer = setInterval(updateTimer, 1000);
+        }
+        
+        function endGame() {
+            gameStarted = false;
+            clearInterval(gameTimer);
+            
+            // Mostrar pantalla de finalización
+            endTitle.textContent = "¡Felicidades!";
+            endMessage.textContent = "Has completado el laberinto";
+            endStats.textContent = `Tiempo: ${formatTime(currentTime)} - Objetos: ${collectedCount}/${totalCollectibles}`;
+            
+            endScreen.style.display = 'flex';
+            setTimeout(() => {
+                endScreen.style.opacity = 1;
+            }, 10);
+        }
+        
+        function restartGame() {
+            // Reiniciar variables del juego
+            collectedCount = 0;
+            updateCollectiblesCounter();
+            
+            // Ocultar pantalla de finalización
+            endScreen.style.opacity = 0;
+            setTimeout(() => {
+                endScreen.style.display = 'none';
+            }, 500);
+            
+            // Reiniciar posición del jugador
+            resetPlayerPosition();
+            
+            // Reiniciar objetos coleccionables
+            collectibles.forEach(collectible => {
+                collectible.visible = true;
+            });
+            
+            // Reiniciar juego
+            startGame();
+        }
+        
+        function resetPlayerPosition() {
+            colliderBox.position.set(0, 1, -5);
+            colliderBox.rotation.set(0, 0, 0);
+            if (model) {
+                model.position.copy(colliderBox.position);
+                model.rotation.copy(colliderBox.rotation);
+            }
+        }
+        
+        function updateTimer() {
+            if (!gameStarted) return;
+            
+            currentTime = Math.floor((Date.now() - startTime) / 1000);
+            timerElement.textContent = `Tiempo: ${formatTime(currentTime)}`;
+        }
+        
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        function updateCollectiblesCounter() {
+            collectiblesCounter.textContent = `Objetos: ${collectedCount}/${totalCollectibles}`;
+        }
+
+        function checkCollision(newPos) {
+            const tempBox = new THREE.Box3().setFromObject(colliderBox);
+            const delta = newPos.clone().sub(colliderBox.position);
+            tempBox.translate(delta);
+
+            for (const box of mazeColliders) {
+                if (box.intersectsBox(tempBox)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        function checkCollectiblesCollision() {
+            const playerBox = new THREE.Box3().setFromObject(colliderBox);
+            
+            for (let i = 0; i < collectibles.length; i++) {
+                if (!collectibles[i].visible) continue;
+                
+                const collectibleBox = new THREE.Box3().setFromObject(collectibles[i]);
+                if (playerBox.intersectsBox(collectibleBox)) {
+                    collectibles[i].visible = false;
+                    collectedCount++;
+                    updateCollectiblesCounter();
+                    
+                    // Efecto de sonido o partícula aquí
+                    console.log("¡Objeto recolectado!");
+                    
+                    // Verificar si se recogieron todos los objetos
+                    if (collectedCount >= totalCollectibles) {
+                        console.log("¡Todos los objetos recolectados!");
+                    }
+                }
+            }
+        }
+        
+        function checkEndPointCollision() {
+            if (collectedCount < totalCollectibles) return;
+            
+            const playerBox = new THREE.Box3().setFromObject(colliderBox);
+            const endBox = new THREE.Box3().setFromObject(endPoint);
+            
+            if (playerBox.intersectsBox(endBox)) {
+                console.log("¡Meta alcanzada!");
+                endGame();
+            }
+        }
+
+        function updateCamera() {
+            if (!colliderBox) return;
+            
+            // Cámara en tercera persona
+            const idealOffset = new THREE.Vector3(0, 2.5, -5);
+            idealOffset.applyQuaternion(colliderBox.quaternion);
+            idealOffset.add(colliderBox.position);
+            
+            // Suavizado de movimiento de cámara
+            camera.position.lerp(idealOffset, 0.1);
+            camera.lookAt(colliderBox.position.x, colliderBox.position.y + 1.2, colliderBox.position.z);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = Math.min(clock.getDelta(), 0.1);
+
+            if (colliderBox && gameStarted) {
+                const forward = keys['KeyW'] || keys['ArrowUp'];
+                const backward = keys['KeyS'] || keys['ArrowDown'];
+                const left = keys['KeyA'] || keys['ArrowLeft'];
+                const right = keys['KeyD'] || keys['ArrowRight'];
+                const speed = 4.0 * delta;
+                const turnSpeed = 3.0 * delta;
+
+                if (left) colliderBox.rotation.y += turnSpeed;
+                if (right) colliderBox.rotation.y -= turnSpeed;
+
+                let moving = false;
+                
+                if (forward) {
+                    const dir = new THREE.Vector3(0, 0, 1).applyEuler(colliderBox.rotation);
+                    const newPos = colliderBox.position.clone().add(dir.multiplyScalar(speed));
+                    if (!checkCollision(newPos)) {
+                        colliderBox.position.copy(newPos);
+                        moving = true;
+                    }
+                }
+                
+                if (backward) {
+                    const dir = new THREE.Vector3(0, 0, -1).applyEuler(colliderBox.rotation);
+                    const newPos = colliderBox.position.clone().add(dir.multiplyScalar(speed * 0.7));
+                    if (!checkCollision(newPos)) {
+                        colliderBox.position.copy(newPos);
+                        moving = true;
+                    }
+                }
+
+                // Mueve el modelo visible al mismo lugar que el collider
+                if (model) {
+                    model.position.copy(colliderBox.position);
+                    model.rotation.copy(colliderBox.rotation);
+
+                    if (moving && action && !action.isRunning()) {
+                        action.play();
+                    }
+                    if (!moving && action && action.isRunning()) {
+                        action.stop();
+                    }
+                }
+                
+                // Verificar colisiones con objetos y meta
+                checkCollectiblesCollision();
+                checkEndPointCollision();
+            }
+
+            if (mixer) mixer.update(delta);
+            updateCamera();
+            
+            // Animación de objetos coleccionables
+            collectibles.forEach(collectible => {
+                if (collectible.visible) {
+                    collectible.rotation.y += delta;
+                    collectible.position.y = 1 + Math.sin(Date.now() * 0.002) * 0.2;
+                }
+            });
+            
+            renderer.render(scene, camera);
+        }
+
+        init();
+        animate();
+    </script>
 </body>
 </html>
