@@ -59,7 +59,7 @@ function loadAssets() {
         const laberintoModel = gltf.scene;
         laberintoModel.scale.set(2, 2, 2);
         scene.add(laberintoModel);
-
+laberintoModel.position.y = 0.05;
         laberintoModel.updateMatrixWorld(true);
 
         mazeColliders = [];
